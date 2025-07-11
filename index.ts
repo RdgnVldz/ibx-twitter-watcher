@@ -49,7 +49,6 @@ let totalTweetsHandled = 0;
 process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception:", err);
 });
-
 process.on("unhandledRejection", (reason) => {
   console.error("Unhandled Rejection:", reason);
 });
@@ -158,7 +157,8 @@ async function monitorXData(accountHandle: string) {
     lastPollTime = new Date().toISOString();
     console.log(`[${lastPollTime}] Polling for new tweets...`);
 
-    const { tweets, users, rateLimit } = await fetchRecentTweets(query, lastId);
+    const { tweets, users, rateLimit } = await fetchRecentTweets(query, lastId ?? undefined);
+
     for (const tweet of tweets) {
       const user = users[tweet.author_id];
       const isReply = tweet.in_reply_to_user_id === userId;
@@ -190,7 +190,7 @@ async function monitorXData(accountHandle: string) {
 const targetAccount = "@liora_ai";
 monitorXData(targetAccount).catch(console.error);
 
-// 🩺 Health check server with /status
+// Health check + status endpoint
 http
   .createServer((req, res) => {
     if (req.url === "/status") {
