@@ -240,3 +240,15 @@ async function monitorXData(accountHandle: string): Promise<void> {
 
 const targetAccount = "@liora_ai";
 monitorXData(targetAccount).catch((error) => console.error("Fatal error:", error));
+
+
+import http from "http";
+
+const port = process.env.PORT || 3000;
+
+http.createServer((_, res) => {
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end("Watcher is running\n");
+}).listen(port, () => {
+  console.log(`health check server running on port ${port}`);
+});
