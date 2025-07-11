@@ -10,7 +10,7 @@ dotenv.config();
 const X_API_V2_BASE_URL = "https://api.twitter.com/2";
 const X_BEARER_TOKEN = process.env.X_BEARER_TOKEN || "";
 const LAST_ID_FILE = "./last_id.txt";
-const POLL_INTERVAL_MS = 30 * 1000;  
+const POLL_INTERVAL_MS = 30 * 1000;
 const X_BOT_BACKEND_URL = process.env.X_BOT_BACKEND_URL || "";
 const LOGGED_USER_ID = "1654404334736777216";
 
@@ -28,11 +28,10 @@ interface RateLimitStatus {
   reset: number;
 }
 
-// Define the response type for the search API
 interface SearchResponse {
   data: XTweet[];
   includes?: {
-    users?: { id: string; username: string; name: string }[]; 
+    users?: { id: string; username: string; name: string }[];
   };
   meta?: {
     newest_id?: string;
@@ -40,7 +39,7 @@ interface SearchResponse {
   };
 }
 
-// Function to load the last ID from the file
+// Load the last seen tweet ID
 async function loadLastId(): Promise<string | null> {
   try {
     const id = await fs.readFile(LAST_ID_FILE, "utf8");
@@ -50,7 +49,6 @@ async function loadLastId(): Promise<string | null> {
   }
 }
 
-// Function to save the latest tweet ID to last_id.txt
 async function saveLastId(id: string): Promise<void> {
   if (!/^[0-9]+$/.test(id)) {
     console.warn("Skipping save: invalid tweet ID:", id);
@@ -94,7 +92,6 @@ function shouldReplyToTweet(tweet: XTweet, targetUserId: string, targetHandle: s
   return mentionsTarget || isReplyToTarget;
 }
 
-// Fetch tweets in real-time
 async function fetchRecentTweets(
   query: string,
   sinceId?: string | null
@@ -112,9 +109,23 @@ async function fetchRecentTweets(
       expansions: "author_id",
     };
 
-    if (sinceId && !isNaN(Number(sinceId))) {
-      params.since_id = sinceId;
+    // Optional: use latest valid since_id known from Twitter's 7-day window
+    const MIN_VALID_SINCE_ID = BigInt("1941178888696627200");
+
+    if (sinceId && /^[0-9]+$/.test(sinceId)) {
+      try {
+        const sinceIdBig = BigInt(sinceId);
+        if (sinceIdBig > MIN_VALID_SINCE_ID) {
+          params.since_id = sinceId;
+        } else {
+          console.warn(`Skipping since_id ${sinceId}: too old for Twitter API window.`);
+        }
+      } catch {
+        console.warn(`Invalid since_id format: ${sinceId}`);
+      }
     }
+
+    console.log("Querying with params:", params);
 
     const response = await axios.get(`${X_API_V2_BASE_URL}/tweets/search/recent`, {
       params,
@@ -135,6 +146,9 @@ async function fetchRecentTweets(
 
     return { tweets: data.data || [], users, rateLimit };
   } catch (error: any) {
+    if (error.response?.data) {
+      console.error("Twitter API error:", error.response.data);
+    }
     console.error("Error fetching recent tweets:", error.message);
     return { tweets: [], users: {}, rateLimit: null };
   }
@@ -148,7 +162,7 @@ async function replyWithLoggedUser(tweetId: string) {
       replyToTweetId: tweetId,
       useAI: true,
       customPrompt: "Please answer the user's question directly without mentioning the user or tagging them.",
-      text: "",  // Empty text for a direct reply without mention
+      text: "",
     });
     console.log(`✅ Reply sent to tweet ${tweetId}`);
   } catch (error: any) {
@@ -158,7 +172,7 @@ async function replyWithLoggedUser(tweetId: string) {
 
 async function monitorXData(accountHandle: string): Promise<void> {
   const cleanHandle = accountHandle.startsWith("@") ? accountHandle.slice(1) : accountHandle;
-  const encodedQuery = `@${cleanHandle}`;
+  const encodedQuery = `@${cleanHandle} -from:${cleanHandle}`;
   let lastId = await loadLastId();
 
   const userId = await getUserId(cleanHandle);
@@ -185,7 +199,7 @@ async function monitorXData(accountHandle: string): Promise<void> {
 
     if (shouldReplyToTweet(tweet, userId, cleanHandle)) {
       console.log(`🤖 Auto-replying to tweet from @${user.username}`);
-      await replyWithLoggedUser(tweet.id);  // Now replying directly without mentioning
+      await replyWithLoggedUser(tweet.id);
     }
   }
 
@@ -201,7 +215,7 @@ async function monitorXData(accountHandle: string): Promise<void> {
 
           if (shouldReplyToTweet(tweet, userId, cleanHandle)) {
             console.log(`🤖 Auto-replying to tweet from @${user.username}`);
-            await replyWithLoggedUser(tweet.id);  // Now replying directly without mentioning
+            await replyWithLoggedUser(tweet.id);
           }
 
           if (!lastId || BigInt(tweet.id) > BigInt(lastId)) {

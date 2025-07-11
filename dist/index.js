@@ -58,7 +58,7 @@ const LAST_ID_FILE = "./last_id.txt";
 const POLL_INTERVAL_MS = 30 * 1000;
 const X_BOT_BACKEND_URL = process.env.X_BOT_BACKEND_URL || "";
 const LOGGED_USER_ID = "1654404334736777216";
-// Function to load the last ID from the file
+// Load the last seen tweet ID
 function loadLastId() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -70,7 +70,6 @@ function loadLastId() {
         }
     });
 }
-// Function to save the latest tweet ID to last_id.txt
 function saveLastId(id) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!/^[0-9]+$/.test(id)) {
@@ -116,10 +115,9 @@ function shouldReplyToTweet(tweet, targetUserId, targetHandle) {
     const isReplyToTarget = tweet.in_reply_to_user_id === targetUserId;
     return mentionsTarget || isReplyToTarget;
 }
-// Fetch tweets in real-time
 function fetchRecentTweets(query, sinceId) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
+        var _a, _b;
         try {
             const params = {
                 query,
@@ -128,9 +126,23 @@ function fetchRecentTweets(query, sinceId) {
                 max_results: 100,
                 expansions: "author_id",
             };
-            if (sinceId && !isNaN(Number(sinceId))) {
-                params.since_id = sinceId;
+            // Optional: use latest valid since_id known from Twitter's 7-day window
+            const MIN_VALID_SINCE_ID = BigInt("1941178888696627200");
+            if (sinceId && /^[0-9]+$/.test(sinceId)) {
+                try {
+                    const sinceIdBig = BigInt(sinceId);
+                    if (sinceIdBig > MIN_VALID_SINCE_ID) {
+                        params.since_id = sinceId;
+                    }
+                    else {
+                        console.warn(`Skipping since_id ${sinceId}: too old for Twitter API window.`);
+                    }
+                }
+                catch (_c) {
+                    console.warn(`Invalid since_id format: ${sinceId}`);
+                }
             }
+            console.log("Querying with params:", params);
             const response = yield axios_1.default.get(`${X_API_V2_BASE_URL}/tweets/search/recent`, {
                 params,
                 headers: { Authorization: `Bearer ${X_BEARER_TOKEN}` },
@@ -147,6 +159,9 @@ function fetchRecentTweets(query, sinceId) {
             return { tweets: data.data || [], users, rateLimit };
         }
         catch (error) {
+            if ((_b = error.response) === null || _b === void 0 ? void 0 : _b.data) {
+                console.error("Twitter API error:", error.response.data);
+            }
             console.error("Error fetching recent tweets:", error.message);
             return { tweets: [], users: {}, rateLimit: null };
         }
@@ -161,7 +176,7 @@ function replyWithLoggedUser(tweetId) {
                 replyToTweetId: tweetId,
                 useAI: true,
                 customPrompt: "Please answer the user's question directly without mentioning the user or tagging them.",
-                text: "", // Empty text for a direct reply without mention
+                text: "",
             });
             console.log(`✅ Reply sent to tweet ${tweetId}`);
         }
@@ -173,7 +188,7 @@ function replyWithLoggedUser(tweetId) {
 function monitorXData(accountHandle) {
     return __awaiter(this, void 0, void 0, function* () {
         const cleanHandle = accountHandle.startsWith("@") ? accountHandle.slice(1) : accountHandle;
-        const encodedQuery = `@${cleanHandle}`;
+        const encodedQuery = `@${cleanHandle} -from:${cleanHandle}`;
         let lastId = yield loadLastId();
         const userId = yield getUserId(cleanHandle);
         console.log("userId: ", userId);
@@ -196,7 +211,7 @@ function monitorXData(accountHandle) {
             console.log(`[${tweet.created_at}] @${user.username}${isReply ? " (reply)" : ""}: ${tweet.text}`);
             if (shouldReplyToTweet(tweet, userId, cleanHandle)) {
                 console.log(`🤖 Auto-replying to tweet from @${user.username}`);
-                yield replyWithLoggedUser(tweet.id); // Now replying directly without mentioning
+                yield replyWithLoggedUser(tweet.id);
             }
         }
         console.log("Starting fallback polling...");
@@ -210,7 +225,7 @@ function monitorXData(accountHandle) {
                         console.log(`[${tweet.created_at}] @${user.username}${isReply ? " (reply)" : ""}: ${tweet.text}`);
                         if (shouldReplyToTweet(tweet, userId, cleanHandle)) {
                             console.log(`🤖 Auto-replying to tweet from @${user.username}`);
-                            yield replyWithLoggedUser(tweet.id); // Now replying directly without mentioning
+                            yield replyWithLoggedUser(tweet.id);
                         }
                         if (!lastId || BigInt(tweet.id) > BigInt(lastId)) {
                             lastId = tweet.id;
