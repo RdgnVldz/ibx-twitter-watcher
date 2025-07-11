@@ -2,6 +2,7 @@ import axios from "axios";
 import * as dotenv from "dotenv";
 import * as fs from "fs/promises";
 import { setIntervalAsync } from "set-interval-async";
+import http from "http";
 
 // Load environment variables
 dotenv.config();
@@ -39,7 +40,16 @@ interface SearchResponse {
   };
 }
 
-// Load the last seen tweet ID
+// Crash Safety
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Rejection:", reason);
+});
+
+// Load last seen tweet ID
 async function loadLastId(): Promise<string | null> {
   try {
     const id = await fs.readFile(LAST_ID_FILE, "utf8");
@@ -109,8 +119,7 @@ async function fetchRecentTweets(
       expansions: "author_id",
     };
 
-    // Optional: use latest valid since_id known from Twitter's 7-day window
-    const MIN_VALID_SINCE_ID = BigInt("1941178888696627200");
+    const MIN_VALID_SINCE_ID = BigInt("1941178888696627200"); // Example minimum
 
     if (sinceId && /^[0-9]+$/.test(sinceId)) {
       try {
@@ -205,6 +214,7 @@ async function monitorXData(accountHandle: string): Promise<void> {
 
   console.log("Starting fallback polling...");
   const poll = async () => {
+    console.log(`[${new Date().toISOString()}] Polling for new tweets...`);
     try {
       const { tweets, users, rateLimit } = await fetchRecentTweets(encodedQuery, lastId);
       if (tweets.length > 0) {
@@ -238,16 +248,20 @@ async function monitorXData(accountHandle: string): Promise<void> {
   setIntervalAsync(poll, POLL_INTERVAL_MS);
 }
 
+// 🧠 Start your bot here
 const targetAccount = "@liora_ai";
 monitorXData(targetAccount).catch((error) => console.error("Fatal error:", error));
 
-import http from "http";
-
+// 🌐 Fake HTTP server for Render's health check
 const port = process.env.PORT || 3000;
-
-http.createServer((_, res) => {
-  res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("Watcher is running\n");
+http.createServer((req, res) => {
+  if (req.url === "/healthz") {
+    res.writeHead(200);
+    res.end("OK\n");
+  } else {
+    res.writeHead(404);
+    res.end("Not found\n");
+  }
 }).listen(port, () => {
-  console.log(`Fake health check server running on port ${port}`);
+  console.log(`✅ Health check server running on port ${port}`);
 });
