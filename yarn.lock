@@ -52,7 +52,7 @@
   resolved "https://registry.npmjs.org/@types/axios/-/axios-0.9.36.tgz"
   integrity sha512-NLOpedx9o+rxo/X5ChbdiX6mS1atE4WHmEEIcR9NLenRVa5HoVjAvjafwU3FPTqnZEstpoqCaW7fagqSoTDNeg==
 
-"@types/node@*", "@types/node@^22.16.2":
+"@types/node@*", "@types/node@^22.15.23":
   version "22.16.2"
   resolved "https://registry.npmjs.org/@types/node/-/node-22.16.2.tgz"
   integrity sha512-Cdqa/eJTvt4fC4wmq1Mcc0CPUjp/Qy2FGqLza3z3pKymsI969TcZ54diNJv8UYUgeWxyb8FSbCkhdR6WqmUFhA==
