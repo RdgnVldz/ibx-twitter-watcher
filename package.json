@@ -5,9 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc",  
-    "start": "pm2 start --interpreter ts-node index.ts --name \"twitter-bot\"",  
-    "dev": "ts-node index.ts" 
+    "build": "tsc",
+    "start": "pm2 start --interpreter ts-node index.ts --name \"twitter-bot\"",
+    "dev": "ts-node index.ts"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +17,7 @@
     "axios": "^1.9.0",
     "chalk": "^5.4.1",
     "dotenv": "^16.5.0",
+    "pm2": "^6.0.8",
     "set-interval-async": "^3.0.3"
   },
   "devDependencies": {
