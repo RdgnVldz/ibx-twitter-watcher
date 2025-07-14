@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "start": "node_modules/.bin/pm2 start --interpreter ts-node index.ts --name \"twitter-bot\"",
+    "start": "node_modules/.bin/pm2 start --interpreter ts-node index.ts --name \"twitter-bot\" --log /tmp/pm2.log && tail -f /tmp/pm2.log",
     "dev": "ts-node index.ts",
     "postinstall": "npm install pm2"
   },
